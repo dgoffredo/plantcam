@@ -55,10 +55,4 @@ diff "$previous" "$dir/current-rotated" "$dir/diff2"
 diff1_brightness=$(brightness "$dir/diff1")
 diff2_brightness=$(brightness "$dir/diff2")
 
-if greater_than "$diff1_brightness" "$diff2_brightness"; then
-  # yes, should rotate
-  exit 0
-fi
-
-# no, should not rotate
-exit 1
+greater_than "$diff1_brightness" "$diff2_brightness"
