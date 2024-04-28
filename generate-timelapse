@@ -1,0 +1,6 @@
+#!/bin/sh
+
+dir=$(dirname "$0")
+
+ffmpeg -framerate 30 -pattern_type glob -i "$dir/pics/*.jpg" -c:v libx264 -pix_fmt yuv420p timelapse.mp4
+

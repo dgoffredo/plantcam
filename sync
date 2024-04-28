@@ -1,0 +1,48 @@
+#!/bin/sh
+
+REMOTE_HOST=${1:-192.168.1.112}
+REMOTE_PORT=2222
+
+banner='==================================================='
+printf '%s\nThe current time is %s\n' "$banner" "$(date --iso=s)"
+
+dir=$(dirname "$0")
+
+rsync --archive --verbose --remove-source-files --exclude='.trashed*' -e "ssh -p $REMOTE_PORT" "$REMOTE_HOST:/sdcard/Pictures/plants/" "$dir/staging/"
+
+exif_datetime_iso() {
+  # The "DateTimeOriginal" EXIF tag is a not-quite-ISO datetime with seconds
+  # precision, at least on this camera.
+  # Get the value of that tag and convert it into an ISO timestamp, e.g.
+  # "2024-04-28T12:23:43".
+  magick identify -format '%[EXIF:*]' "$1" | \
+    sed -n 's/^exif:DateTimeOriginal=\([0-9]\+\):\([0-9]\+\):\([0-9]\+\) \([0-9]\+\):\([0-9]\+\):\([0-9]\+\)$/\1-\2-\3T\4:\5:\6/p'
+}
+
+find "$dir/staging/" -type f -name '*.jpg' | while read -r pic; do
+  brightness=$(magick convert "$pic" -colorspace Gray -format "%[mean]" info:)
+  # Discard images taken at night. Daytime images typically have a brightness >20,000
+  # while nighttime images are <2,000.
+  if [ "$(printf '%s < 10000\n' "$brightness" | bc)" -eq 1 ]; then
+    printf 'deleting image whose brightness is %s\n' "$brightness"
+    rm "$pic"
+    continue
+  fi
+
+  # Find the previously processed image, and check to see whether the current
+  # image is upside down relative to it.  If so, rotate the current image 180
+  # degrees.
+  previous=$(ls -r "$dir/pics" | head -1)
+  if [ -n "$previous" ]; then
+      previous="$dir/pics/$previous"
+      if "$dir/should-rotate" "$previous" "$pic"; then
+        printf 'Rotating the current image\n'
+        magick mogrify -rotate 180 "$pic"
+      fi
+  fi
+
+  destination="$dir/pics/$(exif_datetime_iso "$pic").jpg"
+  mv "$pic" "$destination"
+  chmod a+r "$destination"
+done
+

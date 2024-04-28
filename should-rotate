@@ -1,0 +1,64 @@
+#!/bin/sh
+
+# should-rotate previous.jpg current.jpg
+#
+# Exit with status 0 if current.jpg should be rotated 180 degrees to better
+# match previous.jpg.
+# Exit with a nonzero status otherwise.
+
+previous=$1
+current=$2
+
+dir=$(mktemp -d)
+trap "rm -r \"$dir\"" EXIT
+
+#brightness image.jpg
+brightness() {
+  convert "$1" -colorspace Gray -format '%[fx:quantumrange*image.mean]\n' info:
+}
+
+# diff before.jpg after.jpg output.jpg
+diff() {
+ # The "fuzz" is important, because the exposure and focus of the two images
+ # might be different, meaning that most of the pixels will be not exactly the
+ # same.  They will be close, though.  So, allow for a fudge factor so that
+ # similar pixels don't count as different.
+ 2>/dev/null magick compare "$1" "$2" -metric AE -fuzz 25% -compose Src -highlight-color White -lowlight-color Black "$3"
+}
+
+# rotate image.jpg degrees output.jpg
+rotate() {
+  magick convert "$1" -rotate "$2" "$3"
+}
+
+# greater_than 34.544 232.1
+greater_than() {
+  [ "$(printf '%s > %s\n' "$1" "$2" | bc)" -eq '1' ]
+}
+
+# Here's the idea.
+#
+# Take the diff of `previous` and `current`.  If the images are similar (as we
+# would expect), then the resulting image will be very dark.  Now, rotate
+# `current` 180 degrees and call it, say, `current-rotated`.  Take the diff of
+# `previous` and `current-rotated`.  We assume that `current` doesn't have
+# 180 degree rotation symmetry, so `current-rotated` will be quite different
+# from `current`.  If the diff of `previous` and `current-rotated` is darker
+# than the diff of `previous` and `current`, then it's likely that the camera
+# took `current` upside down relative to `previous`.  If we assume that
+# `previous` is right side up, then we should rotate `current`.
+
+diff "$previous" "$current" "$dir/diff1"
+rotate "$current" 180 "$dir/current-rotated"
+diff "$previous" "$dir/current-rotated" "$dir/diff2"
+
+diff1_brightness=$(brightness "$dir/diff1")
+diff2_brightness=$(brightness "$dir/diff2")
+
+if greater_than "$diff1_brightness" "$diff2_brightness"; then
+  # yes, should rotate
+  exit 0
+fi
+
+# no, should not rotate
+exit 1
