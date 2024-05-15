@@ -41,8 +41,13 @@ find "$dir/staging/" -type f -name '*.jpg' | while read -r pic; do
       fi
   fi
 
-  destination="$dir/pics/$(exif_datetime_iso "$pic").jpg"
+  name="$(exif_datetime_iso "$pic").jpg"
+  destination="$dir/pics/$name"
   mv "$pic" "$destination"
   chmod a+r "$destination"
+
+  # Make a copy of the image with a timestamp at the top.  This will be used
+  # for the time-lapse video.
+  "$dir/timestamp" "$destination" "$dir/pics-timestamped/$name"
 done
 

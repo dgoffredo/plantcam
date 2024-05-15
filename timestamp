@@ -1,0 +1,27 @@
+#!/bin/sh
+
+# Add a timestamp, e.g. "2024-05-14 22:32:43" to the top of the specified
+# input image, writing the result to the specified output image.
+
+input=$1
+output=$2
+
+exif_datetime_display() {
+  # The "DateTimeOriginal" EXIF tag is a not-quite-ISO datetime with seconds
+  # precision, at least on this camera.
+  # Get the value of that tag and convert it a timestamp that looks like
+  # "2024-04-28 12:23:43".
+  magick identify -format '%[EXIF:*]' "$1" | \
+    sed -n 's/^exif:DateTimeOriginal=\([0-9]\+\):\([0-9]\+\):\([0-9]\+\) \([0-9]\+\):\([0-9]\+\):\([0-9]\+\)$/\1-\2-\3 \4:\5:\6/p'
+}
+
+magick convert \
+  -font Ubuntu \
+  -fill white \
+  -stroke black -strokewidth 10 \
+  -pointsize 250 \
+  -gravity North \
+  -draw "text 0,0 '$(exif_datetime_display "$input")'" \
+  "$input" \
+  "$output"
+
