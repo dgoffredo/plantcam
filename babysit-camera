@@ -73,7 +73,7 @@ run() {
   return "$(cat "$WORKDIR/status")"
 }
 
-check_status() {
+api_status() {
   run curl -s "http://$HOST:$API_PORT/1/ctrl/status"
 }
 
@@ -109,7 +109,7 @@ with_retries_or_fail() {
 }
 
 babysit() {
-  while ! with_retries check_status; do
+  while ! with_retries api_status; do
     with_retries_or_fail launch_app;
   done
   status=$(cat "$WORKDIR/stdout")
