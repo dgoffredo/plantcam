@@ -112,7 +112,11 @@ babysit() {
   while ! with_retries api_status; do
     with_retries_or_fail launch_app;
   done
-  status=$(cat "$WORKDIR/stdout")
+
+  # The `sed` is necessary to strip the trailing \r\n.
+  # The \r, in particular, would otherwise be problematic in the `case` below.
+  status=$(sed 's/\s\+$//' "$WORKDIR/stdout")
+
   case "$status" in
   stopped)
     with_retries_or_fail api_start

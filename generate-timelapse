@@ -7,7 +7,7 @@ ffmpeg \
 	-pattern_type glob -i "pics-timestamped/*.jpg" \
 	-c:v libx264 \
 	-pix_fmt yuv420p \
-	-vf "scale=584:1040" \
+	-vf 'scale=-1:1080' \
 	timelapse.mp4
 
 mv timelapse.mp4 /var/www/lookatmyplants.com/
