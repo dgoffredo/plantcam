@@ -90,8 +90,7 @@ END_SSH
 
 with_retries() {
   for _ in $(seq "$MAX_ATTEMPTS"); do
-    run "$@"
-    if [ "$(cat "$WORKDIR/status")" -eq 0 ]; then
+    if run "$@"; then
       return 0 # success
     fi
     sleep "$RETRY_SLEEP_SECONDS"
