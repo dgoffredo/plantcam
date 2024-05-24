@@ -5,8 +5,9 @@
 # something else.  Eventually, though, the phone stops taking pictures.
 #
 # I have an ssh server running on the same phone, so I can connect to it and
-# run `ps` to see if the time-lapse app is still running.  Sometimes, though,
-# the process is still there, but the app is no longer taking pictures.
+# run `ps` to see if the time-lapse app is still running.  Even that is not
+# good enough. Sometimes the process is still there, but the app is no longer
+# taking pictures.
 #
 # Fortunately, the time-lapse app recently introduced an HTTP API.  So, I can
 # probe the API to determine whether the app is functioning properly,
@@ -19,7 +20,7 @@
 # So, to ensure that the phone keeps taking pictures, run this script as a
 # `cron` job every now and then.
 #
-# The logic of this script is best described in a flowchart:
+# The logic of this script is described by the following flowchart:
 #
 #                              ┌──────────────────┐
 #                              │ ./babysit-camera │
@@ -49,4 +50,79 @@
 #                              │    launch app    │ ──────┘
 #                              └──────────────────┘
 
-# TODO
+HOST=192.168.1.112
+SSH_PORT=2222
+API_PORT=8085
+
+MAX_ATTEMPTS=3
+RETRY_SLEEP_SECONDS=2
+
+APP_ACTIVITY=org.woheller69.TimeLapseCam/at.andreasrohner.spartantimelapserec.MainActivity
+
+WORKDIR=$(mktemp -d)
+# shellcheck disable=SC2064
+trap "rm -r '$WORKDIR'" EXIT
+
+# To capture both the output and exit status of a command, use `run`.
+# The command's standard output and error end up in "$WORKDIR/stdout" and
+# "$WORKDIR/stderr", respectively, and the command's exit status ends up in
+# "$WORKDIR/status".
+run() {
+  >"$WORKDIR/stdout" 2>"$WORKDIR/stderr" "$@"
+  >"$WORKDIR/status" echo "$?"
+  return "$(cat "$WORKDIR/status")"
+}
+
+check_status() {
+  run curl -s "http://$HOST:$API_PORT/1/ctrl/status"
+}
+
+api_start() {
+  run curl -s "http://$HOST:$API_PORT/1/ctrl/start"
+}
+
+launch_app() {
+  # shellcheck disable=SC2087
+  ssh -T "http://$HOST:$SSH_PORT" <<END_SSH
+printf 'am start -n "$APP_ACTIVITY"; exit' | su
+END_SSH
+}
+
+with_retries() {
+  for _ in $(seq "$MAX_ATTEMPTS"); do
+    run "$@"
+    if [ "$(cat "$WORKDIR/status")" -eq 0 ]; then
+      return 0 # success
+    fi
+    sleep "$RETRY_SLEEP_SECONDS"
+  done
+
+  return 1 # too many attempts
+}
+
+with_retries_or_fail() {
+  if ! with_retries "$@"; then
+    >&2 <"$WORKDIR/stderr" cat
+    >&2 printf '\nthe command "%s" failed too many times\n' "$@"
+    exit 1
+  fi
+}
+
+babysit() {
+  while ! with_retries check_status; do
+    with_retries_or_fail launch_app;
+  done
+  status=$(cat "$WORKDIR/stdout")
+  case "$status" in
+  stopped)
+    with_retries_or_fail api_start
+    babysit ;;
+  running)
+    exit 0 ;;
+  *)
+    >&2 printf 'unexpected API status: %s\n' "$status"
+    exit 1
+  esac
+}
+
+babysit
