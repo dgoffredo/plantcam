@@ -1,0 +1,18 @@
+digraph {
+  babysit [label="./babysit-camera"];
+  launch [label="launch app"];
+  status [label="API/status"];
+  retry;
+  start [label="API/start"];
+  done;
+
+  babysit -> status;
+  status -> retry [label="refused"];
+  retry -> status;
+  retry -> launch [label="max retries"];
+  launch -> status;
+
+  status -> start [label="stopped"];
+  start -> status;
+  status -> done [label="running"];
+}

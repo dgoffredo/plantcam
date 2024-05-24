@@ -1,0 +1,52 @@
+#!/bin/sh
+
+# The time-lapse app on the Android phone stops working sometimes.  I don't
+# know if it's Android suspending the "activity," or if it's a crash, or
+# something else.  Eventually, though, the phone stops taking pictures.
+#
+# I have an ssh server running on the same phone, so I can connect to it and
+# run `ps` to see if the time-lapse app is still running.  Sometimes, though,
+# the process is still there, but the app is no longer taking pictures.
+#
+# Fortunately, the time-lapse app recently introduced an HTTP API.  So, I can
+# probe the API to determine whether the app is functioning properly,
+# regardless of whether the process appears in the output of `ps`.
+#
+# If the app is not functioning properly, then I can ssh into the phone and
+# escalate my privileges via `su` (the phone is "rooted") and then use `am`
+# ("app manager") to start/restart/resume the time-lapse app.
+#
+# So, to ensure that the phone keeps taking pictures, run this script as a
+# `cron` job every now and then.
+#
+# The logic of this script is best described in a flowchart:
+#
+#                              ┌──────────────────┐
+#                              │ ./babysit-camera │
+#                              └──────────────────┘
+#                                │
+#                                │
+#                                ▼
+#     ┌───────────┐  running   ┌────────────────────────────┐
+#     │   done    │ ◀───────── │                            │
+#     └───────────┘            │                            │
+#                              │                            │
+#       ┌────────────────────▶ │         API/status         │
+#       │                      │                            │
+#     ┌───────────┐  stopped   │                            │
+#     │ API/start │ ◀───────── │                            │
+#     └───────────┘            └────────────────────────────┘
+#                                │                   ▲    ▲
+#                                │ refused           │    │
+#                                ▼                   │    │
+#                              ┌──────────────────┐  │    │
+#                              │      retry       │ ─┘    │
+#                              └──────────────────┘       │
+#                                │                        │
+#                                │ max retries            │
+#                                ▼                        │
+#                              ┌──────────────────┐       │
+#                              │    launch app    │ ──────┘
+#                              └──────────────────┘
+
+# TODO
