@@ -1,3 +1,8 @@
+# This is a flowchart used in the comments at the top of `babysit-camera`.
+#
+#     $ sudo apt install -y libgraph-easy-perl
+#     $ graph-easy --as=boxart babysit-camera.dot
+#
 digraph {
   babysit [label="./babysit-camera"];
   launch [label="launch app"];
