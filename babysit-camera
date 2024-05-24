@@ -103,7 +103,7 @@ with_retries() {
 with_retries_or_fail() {
   if ! with_retries "$@"; then
     >&2 <"$WORKDIR/stderr" cat
-    >&2 printf '\nthe command "%s" failed too many times\n' "$@"
+    >&2 printf '\nthe command "%s" failed too many times\n' "$*"
     exit 1
   fi
 }
