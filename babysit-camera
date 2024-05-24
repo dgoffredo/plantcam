@@ -68,6 +68,7 @@ trap "rm -r '$WORKDIR'" EXIT
 # "$WORKDIR/stderr", respectively, and the command's exit status ends up in
 # "$WORKDIR/status".
 run() {
+  echo "execute: $*"
   >"$WORKDIR/stdout" 2>"$WORKDIR/stderr" "$@"
   >"$WORKDIR/status" echo "$?"
   return "$(cat "$WORKDIR/status")"
