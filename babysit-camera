@@ -84,7 +84,7 @@ api_start() {
 
 launch_app() {
   # shellcheck disable=SC2087
-  ssh -T "http://$HOST:$SSH_PORT" <<END_SSH
+  ssh -T -p "$SSH_PORT" "$HOST" <<END_SSH
 printf 'am start -n "$APP_ACTIVITY"; exit' | su
 END_SSH
 }
